@@ -102,15 +102,19 @@ module.exports = (connection, client) => {
             }
         },
         insertRedisUser: async count => {
-            return new Promise((resolve) => {
+            return new Promise( resolve  => {
                 const [ name, age ] = generateUser(count);
-                client.hmset(`user_${count}`, 'name', name, 'age', age);
+                client.hmset(`user_${count}`, 'name', name, 'age', age, (err, res) => resolve(`user_${count}`));
+            })
+        },
+        getRedisByKey: async key => {
+            return new Promise( resolve => {
                 const beforeLookup = new Date().getTime();
-                client.hgetall(`user_${count}`, (err, reply) => {
+                client.hgetall(key, (err, reply) => {
                     lookupTimes.redis.push(new Date().getTime() - beforeLookup);
                     resolve();
                 })
             })
-        } 
+        }
     }
 }

@@ -32,7 +32,8 @@ const {
     prepareStats,
     seedIndexTable,
     insertRedisUser,
-    getPgRow
+    getPgRow,
+    getRedisByKey
 } = utils(connection, client);
 
 app.post('/pg', setReqTimeout, async (req, res) => {
@@ -119,6 +120,7 @@ app.post('/redis', async (req, res) => {
     const startTime = new Date().getTime();
     let baseAverage = new Date().getTime();
     const insertSectionTimes = [];
+    const redisKeys = [];
 
     while(count < recordsToInsert) {
         count++;
@@ -127,10 +129,15 @@ app.post('/redis', async (req, res) => {
             baseAverage = new Date().getTime();
         }
 
-        await insertRedisUser(count);
+        const redisKey = await insertRedisUser(count);
+        redisKeys.push(redisKey);
     }
 
     const endInsert = new Date().getTime();
+
+    for(let key of redisKeys) {
+        await getRedisByKey(key);
+    }
     
     console.log("Stats for redis insert\n");
     console.log(prepareStats(endInsert, startTime, insertSectionTimes, recordsToInsert, 'redis'));
