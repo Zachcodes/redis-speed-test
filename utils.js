@@ -74,7 +74,7 @@ module.exports = (connection, client) => {
             return `TRUNCATE ${tableName};`;
         },
         setReqTimeout: (req, res, next) => {
-            req.setTimeout(500 * 1000);
+            req.setTimeout(1000 * 1000);
             next();
         },
         prepareStats: (end, start, sectionTimes, recordsToInsert, key = '') => {
@@ -92,7 +92,7 @@ module.exports = (connection, client) => {
         seedIndexTable: async () => {
             let count = 0;
             let testCustomers = [];
-            while(count < 20000000) {
+            while(count < 10000000) {
                 count++;
                 testCustomers.push(generateCustomer(count));
                 if(!(count % 10000)) {
