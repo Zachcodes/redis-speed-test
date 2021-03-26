@@ -31,7 +31,8 @@ const {
     setReqTimeout,
     prepareStats,
     seedIndexTable,
-    insertRedisUser
+    insertRedisUser,
+    getPgRow
 } = utils(connection, client);
 
 app.post('/pg', setReqTimeout, async (req, res) => {
@@ -39,6 +40,7 @@ app.post('/pg', setReqTimeout, async (req, res) => {
     const startTime = new Date().getTime();
     let baseAverage = new Date().getTime();
     const insertSectionTimes = [];
+    const lookupIds = [];
 
     while(count < recordsToInsert) {
         count++;
@@ -46,16 +48,24 @@ app.post('/pg', setReqTimeout, async (req, res) => {
             insertSectionTimes.push(new Date().getTime() - baseAverage);
             baseAverage = new Date().getTime();
         }
-         
-        await insertPgRow(insertUser(count));
+
+        const { insertId } = await insertPgRow(insertUser(count));
+
+        if(!(count % 100)) {
+            lookupIds.push(insertId);
+        }
     }
     
     const endInsert = new Date().getTime();
+
+    for(let recordId of lookupIds) {
+        await getPgRow(recordId, 'test_users');
+    }
     
     connection.query(countQuery('test_users'), function (err, rows) {
         if (err) throw err;
         console.log("Stats for clean table insert\n");
-        console.log(prepareStats(endInsert, startTime, insertSectionTimes, recordsToInsert));
+        console.log(prepareStats(endInsert, startTime, insertSectionTimes, recordsToInsert, 'test_users'));
         console.log("\n");
         // perform cleanup
         connection.query(cleanup('test_users'), () => res.sendStatus(200));
@@ -68,25 +78,39 @@ app.post('/pg/index', setReqTimeout, async (req, res) => {
     const startTime = new Date().getTime();
     let baseAverage = new Date().getTime();
     const insertSectionTimes = [];
+    const lookupIds = [];
 
     while(count < recordsToInsert) {
         count++;
+
         if(!(count % 1000)) {
             insertSectionTimes.push(new Date().getTime() - baseAverage);
             baseAverage = new Date().getTime();
         }
-        await insertPgRow(insertCustomer(count));
+
+        const { insertId } = await insertPgRow(insertCustomer(count));
+
+        if(!(count % 100)) {
+            lookupIds.push(insertId);
+        }
     }
     
     const endInsert = new Date().getTime();
+
+    for(let recordId of lookupIds) {
+        await getPgRow(recordId, 'test_customer');
+    }
     
     connection.query(countQuery('test_customer'), function (err, rows) {
         if (err) throw err;
-        console.log("Stats for indexed table with 1 million initial records\n");
-        console.log(prepareStats(endInsert, startTime, insertSectionTimes, recordsToInsert));
+        console.log("Stats for indexed table with 10 million initial records\n");
+        console.log(prepareStats(endInsert, startTime, insertSectionTimes, recordsToInsert, 'test_customer'));
         console.log("\n");
         // perform cleanup
-        connection.query(cleanup('test_customer'), () => res.sendStatus(200));
+        connection.query(cleanup('test_customer'), (err) => {
+            if(err) console.log(err);
+            res.sendStatus(200)
+        });
     });
 })
 
@@ -109,7 +133,7 @@ app.post('/redis', async (req, res) => {
     const endInsert = new Date().getTime();
     
     console.log("Stats for redis insert\n");
-    console.log(prepareStats(endInsert, startTime, insertSectionTimes, recordsToInsert));
+    console.log(prepareStats(endInsert, startTime, insertSectionTimes, recordsToInsert, 'redis'));
     // perform cleanup
     client.flushall(() => res.sendStatus(200));
 })
